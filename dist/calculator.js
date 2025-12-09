@@ -1,0 +1,569 @@
+// DOM Elements
+const principalInput = document.getElementById('principal');
+const interestRateInput = document.getElementById('interest-rate');
+const compoundingFrequencySelect = document.getElementById('compounding-frequency');
+const yearsInput = document.getElementById('years');
+const monthsInput = document.getElementById('months');
+const daysInput = document.getElementById('days');
+const startDateInput = document.getElementById('start-date');
+const endDateInput = document.getElementById('end-date');
+const calculateBtn = document.getElementById('calculate-btn');
+const resultsSection = document.getElementById('results');
+const breakdownViewSelect = document.getElementById('breakdown-view');
+
+// Result elements
+const finalAmountEl = document.getElementById('final-amount');
+const totalInterestEl = document.getElementById('total-interest');
+const calculationPeriodEl = document.getElementById('calculation-period');
+const breakdownTableEl = document.getElementById('breakdown-table');
+const growthChartCanvas = document.getElementById('growth-chart');
+
+// Chart instance
+let growthChart = null;
+
+// Store calculation data for regenerating breakdown
+let calculationData = null;
+
+// Event Listeners
+calculateBtn.addEventListener('click', calculate);
+
+// Update rate label based on compounding frequency
+compoundingFrequencySelect.addEventListener('change', updateRateLabel);
+
+// Update breakdown when view selection changes
+breakdownViewSelect.addEventListener('change', () => {
+    if (calculationData) {
+        generateBreakdown(
+            calculationData.principal,
+            calculationData.rate,
+            calculationData.compoundingFrequency,
+            calculationData.timeInYears,
+            calculationData.startDate
+        );
+    }
+});
+
+function updateRateLabel() {
+    const rateLabel = document.getElementById('interest-rate-label');
+    const frequency = parseInt(compoundingFrequencySelect.value);
+
+    if (frequency === 365) {
+        rateLabel.textContent = 'Daily Interest Rate (%)';
+    } else if (frequency === 12) {
+        rateLabel.textContent = 'Monthly Interest Rate (%)';
+    } else if (frequency === 4) {
+        rateLabel.textContent = 'Quarterly Interest Rate (%)';
+    } else {
+        rateLabel.textContent = 'Annual Interest Rate (%)';
+    }
+}
+
+// Initialize label
+updateRateLabel();
+
+// Set start date to today by default
+function setDefaultStartDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    startDateInput.value = `${year}-${month}-${day}`;
+}
+
+// Set default start date on page load
+setDefaultStartDate();
+
+// Clear end date input when time period inputs change (but keep start date)
+[yearsInput, monthsInput, daysInput].forEach(input => {
+    input.addEventListener('input', () => {
+        if (input.value) {
+            endDateInput.value = '';
+        }
+    });
+});
+
+// Clear time period inputs when both start and end dates are selected
+[startDateInput, endDateInput].forEach(input => {
+    input.addEventListener('change', () => {
+        // Only clear period inputs if BOTH dates are filled
+        if (startDateInput.value && endDateInput.value) {
+            yearsInput.value = '';
+            monthsInput.value = '';
+            daysInput.value = '';
+        }
+    });
+});
+
+function calculate() {
+    // Show loading state
+    calculateBtn.classList.add('loading');
+    calculateBtn.disabled = true;
+
+    setTimeout(() => {
+        try {
+            // Get inputs
+            const principal = parseFloat(principalInput.value) || 0;
+            const periodRatePercent = parseFloat(interestRateInput.value) || 0;
+            const compoundingFrequency = parseInt(compoundingFrequencySelect.value);
+
+            // Validation
+            if (principal <= 0) {
+                alert('Please enter a valid principal amount');
+                return;
+            }
+
+            if (periodRatePercent < 0) {
+                alert('Please enter a valid interest rate');
+                return;
+            }
+
+            // Calculate time period
+            let timeInYears;
+            let periodText;
+            let startDate;
+            let endDate;
+
+            if (startDateInput.value && endDateInput.value) {
+                // Use date range
+                startDate = new Date(startDateInput.value);
+                endDate = new Date(endDateInput.value);
+
+                if (endDate <= startDate) {
+                    alert('End date must be after start date');
+                    return;
+                }
+
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                timeInYears = diffDays / 365;
+
+                periodText = formatTimePeriod(diffDays);
+            } else {
+                // Use time period inputs
+                const years = parseInt(yearsInput.value) || 0;
+                const months = parseInt(monthsInput.value) || 0;
+                const days = parseInt(daysInput.value) || 0;
+
+                if (years === 0 && months === 0 && days === 0) {
+                    alert('Please enter a time period or select dates');
+                    return;
+                }
+
+                // Calculate start and end dates from today
+                startDate = startDateInput.value ? new Date(startDateInput.value) : new Date();
+                endDate = new Date(startDate);
+                endDate.setFullYear(endDate.getFullYear() + years);
+                endDate.setMonth(endDate.getMonth() + months);
+                endDate.setDate(endDate.getDate() + days);
+
+                timeInYears = years + (months / 12) + (days / 365);
+                periodText = formatTimePeriodFromInputs(years, months, days);
+            }
+
+            // Calculate compound interest
+            // Formula: A = P(1 + r)^n
+            // Where r is the period rate (as decimal) and n is the number of periods
+            const periodRate = periodRatePercent / 100; // Convert percentage to decimal
+            const numberOfPeriods = compoundingFrequency * timeInYears;
+            const finalAmount = principal * Math.pow((1 + periodRate), numberOfPeriods);
+            const totalInterest = finalAmount - principal;
+
+            // Display results
+            displayResults(principal, finalAmount, totalInterest, periodText, periodRate, compoundingFrequency, timeInYears, startDate, endDate);
+
+        } catch (error) {
+            alert('An error occurred during calculation. Please check your inputs.');
+            console.error(error);
+        } finally {
+            calculateBtn.classList.remove('loading');
+            calculateBtn.disabled = false;
+        }
+    }, 300); // Small delay for better UX
+}
+
+function displayResults(principal, finalAmount, totalInterest, periodText, rate, compoundingFrequency, timeInYears, startDate, endDate) {
+    // Store calculation data
+    calculationData = { principal, rate, compoundingFrequency, timeInYears, startDate, endDate };
+
+    // Format currency
+    finalAmountEl.textContent = formatCurrency(finalAmount);
+    totalInterestEl.textContent = formatCurrency(totalInterest);
+
+    // Display end date
+    calculationPeriodEl.textContent = formatDateLong(endDate);
+
+    // Set up breakdown view options based on compounding frequency and time period
+    setupBreakdownViewOptions(compoundingFrequency, timeInYears);
+
+    // Generate chart
+    generateChart(principal, rate, compoundingFrequency, timeInYears);
+
+    // Generate breakdown table
+    generateBreakdown(principal, rate, compoundingFrequency, timeInYears, startDate);
+
+    // Show results section
+    resultsSection.style.display = 'block';
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setupBreakdownViewOptions(compoundingFrequency, timeInYears) {
+    // Calculate total days
+    const totalDays = timeInYears * 365;
+
+    // Clear existing options
+    breakdownViewSelect.innerHTML = '';
+
+    // Define available options based on compounding frequency
+    const allOptions = [
+        { value: 'daily', label: 'Daily', minFreq: 365 },
+        { value: 'weekly', label: 'Weekly', minFreq: 52 },
+        { value: 'monthly', label: 'Monthly', minFreq: 12 },
+        { value: 'quarterly', label: 'Quarterly', minFreq: 4 },
+        { value: 'annually', label: 'Annually', minFreq: 1 }
+    ];
+
+    // Filter options based on compounding frequency (can only view at or above compound frequency)
+    const availableOptions = allOptions.filter(option => option.minFreq <= compoundingFrequency);
+
+    // Add options to select
+    availableOptions.forEach(option => {
+        const optionEl = document.createElement('option');
+        optionEl.value = option.value;
+        optionEl.textContent = option.label;
+        breakdownViewSelect.appendChild(optionEl);
+    });
+
+    // Auto-select default based on time period
+    let defaultView;
+    if (totalDays <= 30) {
+        defaultView = 'daily';
+    } else if (totalDays <= 90) {
+        defaultView = 'weekly';
+    } else if (totalDays <= 365) {
+        defaultView = 'monthly';
+    } else {
+        defaultView = 'annually';
+    }
+
+    // Make sure the default view is available, otherwise use the finest available
+    const isDefaultAvailable = availableOptions.some(opt => opt.value === defaultView);
+    if (!isDefaultAvailable) {
+        defaultView = availableOptions[0].value;
+    }
+
+    breakdownViewSelect.value = defaultView;
+}
+
+function generateChart(principal, rate, compoundingFrequency, timeInYears) {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded');
+        return;
+    }
+
+    // Destroy existing chart if it exists
+    if (growthChart) {
+        growthChart.destroy();
+    }
+
+    // Determine data points based on time period
+    let dataPoints = Math.min(Math.ceil(timeInYears * 12), 60); // Up to 60 months
+    let timeIncrement = timeInYears / dataPoints;
+
+    const labels = [];
+    const principalData = [];
+    const balanceData = [];
+    const interestData = [];
+
+    // Generate data points
+    for (let i = 0; i <= dataPoints; i++) {
+        const currentTime = i * timeIncrement;
+        const numberOfPeriods = compoundingFrequency * currentTime;
+        const currentBalance = principal * Math.pow((1 + rate), numberOfPeriods);
+        const currentInterest = currentBalance - principal;
+
+        // Create label based on time
+        let label;
+        if (timeInYears <= 1) {
+            // Show in days for short periods
+            label = Math.round(currentTime * 365) + 'd';
+        } else if (timeInYears <= 3) {
+            // Show in months for medium periods
+            label = Math.round(currentTime * 12) + 'mo';
+        } else {
+            // Show in years for long periods
+            label = currentTime.toFixed(1) + 'y';
+        }
+
+        labels.push(label);
+        principalData.push(principal);
+        balanceData.push(currentBalance);
+        interestData.push(currentInterest);
+    }
+
+    // Create chart
+    const ctx = growthChartCanvas.getContext('2d');
+    growthChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Principal',
+                    data: principalData,
+                    borderColor: 'rgb(162, 155, 254)',
+                    backgroundColor: 'rgba(162, 155, 254, 0.6)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Interest Earned',
+                    data: interestData,
+                    borderColor: 'rgb(108, 92, 231)',
+                    backgroundColor: 'rgba(108, 92, 231, 0.7)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 13,
+                            weight: '500'
+                        }
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(45, 52, 54, 0.95)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(162, 155, 254, 0.5)',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += formatCurrency(context.parsed.y);
+                            return label;
+                        },
+                        footer: function(tooltipItems) {
+                            let total = 0;
+                            tooltipItems.forEach(item => {
+                                total += item.parsed.y;
+                            });
+                            return 'Total: ' + formatCurrency(total);
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        },
+                        color: '#636e72',
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    stacked: true,
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 0,
+                        color: '#636e72',
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        display: false,
+                        drawBorder: false
+                    }
+                }
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            }
+        }
+    });
+}
+
+function generateBreakdown(principal, rate, compoundingFrequency, timeInYears, startDate) {
+    const viewMode = breakdownViewSelect.value;
+    let periodLabel;
+    let periodsToShow;
+    let periodIncrement; // in years
+    let periodIncrementDays; // in days for date calculation
+
+    // Determine period settings based on view mode
+    switch(viewMode) {
+        case 'daily':
+            periodLabel = 'Date';
+            periodIncrement = 1/365;
+            periodIncrementDays = 1;
+            periodsToShow = Math.min(Math.ceil(timeInYears * 365), 100);
+            break;
+        case 'weekly':
+            periodLabel = 'Week Ending';
+            periodIncrement = 7/365;
+            periodIncrementDays = 7;
+            periodsToShow = Math.min(Math.ceil(timeInYears * 365 / 7), 100);
+            break;
+        case 'monthly':
+            periodLabel = 'Month';
+            periodIncrement = 1/12;
+            periodIncrementDays = null; // Use month increment instead
+            periodsToShow = Math.min(Math.ceil(timeInYears * 12), 60);
+            break;
+        case 'quarterly':
+            periodLabel = 'Quarter';
+            periodIncrement = 0.25;
+            periodIncrementDays = null; // Use month increment instead
+            periodsToShow = Math.min(Math.ceil(timeInYears * 4), 40);
+            break;
+        case 'annually':
+            periodLabel = 'Year';
+            periodIncrement = 1;
+            periodIncrementDays = null; // Use year increment instead
+            periodsToShow = Math.min(Math.ceil(timeInYears), 30);
+            break;
+        default:
+            periodLabel = 'Period';
+            periodIncrement = 1/12;
+            periodIncrementDays = null;
+            periodsToShow = Math.min(Math.ceil(timeInYears * 12), 24);
+    }
+
+    let tableHTML = '<table class="breakdown-table"><thead><tr>';
+    tableHTML += `<th>${periodLabel}</th>`;
+    tableHTML += '<th>Balance</th>';
+    tableHTML += '<th>Interest Earned</th>';
+    tableHTML += '<th>Total Interest</th>';
+    tableHTML += '</tr></thead><tbody>';
+
+    let previousBalance = principal;
+
+    for (let period = 1; period <= periodsToShow; period++) {
+        const currentTime = Math.min(period * periodIncrement, timeInYears);
+
+        // Calculate the current date
+        let currentDate = new Date(startDate);
+        if (viewMode === 'monthly') {
+            currentDate.setMonth(currentDate.getMonth() + period);
+        } else if (viewMode === 'quarterly') {
+            currentDate.setMonth(currentDate.getMonth() + (period * 3));
+        } else if (viewMode === 'annually') {
+            currentDate.setFullYear(currentDate.getFullYear() + period);
+        } else {
+            currentDate.setDate(currentDate.getDate() + (period * periodIncrementDays));
+        }
+
+        // Calculate balance using compound interest formula
+        // A = P(1 + r)^n where r is period rate, n is number of periods
+        const numberOfPeriods = compoundingFrequency * currentTime;
+        const currentBalance = principal * Math.pow((1 + rate), numberOfPeriods);
+
+        const periodInterest = currentBalance - previousBalance;
+        const totalInterest = currentBalance - principal;
+
+        // Format the date based on view mode
+        let dateDisplay;
+        if (viewMode === 'daily' || viewMode === 'weekly') {
+            dateDisplay = formatDateShort(currentDate);
+        } else {
+            dateDisplay = formatDateLong(currentDate);
+        }
+
+        tableHTML += '<tr>';
+        tableHTML += `<td>${dateDisplay}</td>`;
+        tableHTML += `<td>${formatCurrency(currentBalance)}</td>`;
+        tableHTML += `<td>${formatCurrency(periodInterest)}</td>`;
+        tableHTML += `<td>${formatCurrency(totalInterest)}</td>`;
+        tableHTML += '</tr>';
+
+        previousBalance = currentBalance;
+
+        // Stop if we've reached the end of the investment period
+        if (currentTime >= timeInYears) break;
+    }
+
+    tableHTML += '</tbody></table>';
+    breakdownTableEl.innerHTML = tableHTML;
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
+}
+
+function formatDateLong(date) {
+    // Format: "10 Oct 2025"
+    const day = date.getDate();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+}
+
+function formatDateShort(date) {
+    // Format: "DD/MM/YY"
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+}
+
+function formatTimePeriod(totalDays) {
+    const years = Math.floor(totalDays / 365);
+    const remainingDays = totalDays % 365;
+    const months = Math.floor(remainingDays / 30);
+    const days = remainingDays % 30;
+
+    const parts = [];
+    if (years > 0) parts.push(`${years} year${years !== 1 ? 's' : ''}`);
+    if (months > 0) parts.push(`${months} month${months !== 1 ? 's' : ''}`);
+    if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+
+    return parts.join(', ') || '0 days';
+}
+
+function formatTimePeriodFromInputs(years, months, days) {
+    const parts = [];
+    if (years > 0) parts.push(`${years} year${years !== 1 ? 's' : ''}`);
+    if (months > 0) parts.push(`${months} month${months !== 1 ? 's' : ''}`);
+    if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+
+    return parts.join(', ') || '0 days';
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compound Interest Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Compound Interest Calculator</h1>
+            <p class="subtitle">Calculate your investment growth with daily, monthly, quarterly, or annual compounding</p>
+        </header>
+
+        <div class="calculator-wrapper">
+            <div class="calculator-section">
+                <h2>Investment Details</h2>
+
+                <div class="form-group">
+                    <label for="principal">Principal Amount ($)</label>
+                    <input type="number" id="principal" placeholder="10000" step="0.01" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="interest-rate" id="interest-rate-label">Daily Interest Rate (%)</label>
+                    <input type="number" id="interest-rate" placeholder="3.0" step="0.01" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="compounding-frequency">Compounding Frequency</label>
+                    <select id="compounding-frequency">
+                        <option value="365">Daily</option>
+                        <option value="12">Monthly</option>
+                        <option value="4">Quarterly</option>
+                        <option value="1">Annually</option>
+                    </select>
+                </div>
+
+                <h2>Time Period</h2>
+
+                <div class="time-inputs">
+                    <div class="form-group">
+                        <label for="years">Years</label>
+                        <input type="number" id="years" placeholder="0" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="months">Months</label>
+                        <input type="number" id="months" placeholder="0" min="0" max="11">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="days">Days</label>
+                        <input type="number" id="days" placeholder="0" min="0" max="364">
+                    </div>
+                </div>
+
+                <div class="divider">OR</div>
+
+                <div class="date-inputs">
+                    <div class="form-group">
+                        <label for="start-date">Start Date</label>
+                        <input type="date" id="start-date">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="end-date">End Date</label>
+                        <input type="date" id="end-date">
+                    </div>
+                </div>
+
+                <button id="calculate-btn" class="btn-calculate">Calculate</button>
+            </div>
+
+            <div class="results-section" id="results" style="display: none;">
+                <h2>Results</h2>
+
+                <div class="result-card primary">
+                    <div class="result-label">Final Amount</div>
+                    <div class="result-value" id="final-amount">$0.00</div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-label">Total Interest Earned</div>
+                    <div class="result-value" id="total-interest">$0.00</div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-label">End Date</div>
+                    <div class="result-value" id="calculation-period">0 years</div>
+                </div>
+
+                <div class="breakdown-section">
+                    <div class="breakdown-header">
+                        <h3>Breakdown</h3>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="breakdown-view">View as:</label>
+                            <select id="breakdown-view" class="breakdown-view-select">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="annually">Annually</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="breakdown-table"></div>
+                </div>
+
+                <div class="chart-section">
+                    <h3>Growth Over Time</h3>
+                    <canvas id="growth-chart"></canvas>
+                </div>
+
+                <div class="formula-section">
+                    <h3>How it's calculated</h3>
+                    <div class="formula">
+                        <p><strong>Formula:</strong> A = P(1 + r)<sup>n</sup></p>
+                        <p class="formula-explanation">
+                            Where:<br>
+                            A = Final amount<br>
+                            P = Principal (initial investment)<br>
+                            r = Interest rate per period (decimal)<br>
+                            n = Total number of compounding periods
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="calculator.js"></script>
+</body>
+</html>
