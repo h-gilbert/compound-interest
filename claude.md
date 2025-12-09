@@ -23,11 +23,18 @@ Then open http://localhost:8002 in your browser.
 ## Project Structure
 ```
 compound-interest-calculator/
-├── index.html           # Main application
-├── calculator.js        # Calculation logic
-├── styles.css          # Styling
-└── dist/               # Distribution folder
+├── index.html           # Landing page (home)
+├── styles.css           # Landing page styles
+├── calculator/          # Calculator app
+│   ├── index.html       # Calculator page
+│   ├── calculator.js    # Calculation logic
+│   └── styles.css       # Calculator styles
+└── dist/                # Distribution folder
 ```
+
+## Routes
+- `/` - Landing page
+- `/calculator/` - Calculator application
 
 ## Features
 - Principal, interest rate, and time period inputs
