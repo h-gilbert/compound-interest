@@ -1,35 +1,79 @@
-name: Deploy to Server
+name: Build and Deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Deploy via rsync
-        uses: burnett01/rsync-deployments@7.0.1
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          switches: -avzr --delete --exclude='.git' --exclude='.github' --exclude='server-config' --exclude='commands.txt' --exclude='CLAUDE.md'
-          path: ./
-          remote_path: /mnt/user/appdata/compound-interest-calculator/
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_port: ${{ secrets.SSH_PORT }}
-          remote_user: ${{ secrets.SSH_USER }}
-          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Reload nginx
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/compound-interest
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
+          host: ${{ secrets.SERVER_TAILSCALE_IP }}
+          username: fred
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: docker exec multi-site-nginx nginx -s reload
+          script: |
+            set -e
+            echo "🚀 Deploying compound-interest..."
+
+            # Pull latest image
+            docker pull ghcr.io/h-gilbert/compound-interest:latest
+
+            # Restart container
+            cd /opt/docker/infrastructure
+            docker compose up -d --no-deps compound-interest
+
+            # Reload nginx
+            docker exec nginx nginx -s reload
+
+            # Verify
+            echo "✅ Container status:"
+            docker ps --filter "name=compound-interest" --format "table {{.Names}}\t{{.Status}}"
+
+            echo "✅ Deployment complete!"

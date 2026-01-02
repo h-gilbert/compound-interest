@@ -1,0 +1,9 @@
+.git
+.github
+.claude
+server-config
+commands.txt
+claude.md
+CLAUDE.md
+*.md
+dist
