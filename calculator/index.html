@@ -30,17 +30,27 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="interest-rate" id="interest-rate-label">Daily Interest Rate (%)</label>
-                    <input type="number" id="interest-rate" placeholder="3.0" step="0.01" min="0">
+                    <label for="interest-rate">Interest Rate (%)</label>
+                    <input type="number" id="interest-rate" placeholder="5.0" step="0.01" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="rate-type">Rate Type</label>
+                    <select id="rate-type">
+                        <option value="annual" selected>Annual (APR)</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="daily">Daily</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
                     <label for="compounding-frequency">Compounding Frequency</label>
                     <select id="compounding-frequency">
                         <option value="365">Daily</option>
-                        <option value="12">Monthly</option>
+                        <option value="12" selected>Monthly</option>
                         <option value="4">Quarterly</option>
-                        <option value="1" selected>Annually</option>
+                        <option value="1">Annually</option>
                     </select>
                 </div>
 
@@ -124,9 +134,9 @@
                 <div class="formula-section">
                     <h3>How it's calculated</h3>
                     <div class="formula">
-                        <p><strong>Formula:</strong> A = P(1 + r)<sup>n</sup></p>
+                        <p><strong>Formula:</strong> A = P(1 + r/n)<sup>nt</sup></p>
                         <p class="formula-explanation">
-                            Where: A = Final amount, P = Principal, r = Interest rate per period, n = Number of periods
+                            Where: A = Final amount, P = Principal, r = Annual interest rate, n = Compounding frequency per year, t = Time in years
                         </p>
                     </div>
                 </div>

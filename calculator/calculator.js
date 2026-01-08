@@ -1,6 +1,7 @@
 // DOM Elements
 const principalInput = document.getElementById('principal');
 const interestRateInput = document.getElementById('interest-rate');
+const rateTypeSelect = document.getElementById('rate-type');
 const compoundingFrequencySelect = document.getElementById('compounding-frequency');
 const yearsInput = document.getElementById('years');
 const monthsInput = document.getElementById('months');
@@ -59,9 +60,6 @@ let calculationData = null;
 // Event Listeners
 calculateBtn.addEventListener('click', calculate);
 
-// Update rate label based on compounding frequency
-compoundingFrequencySelect.addEventListener('change', updateRateLabel);
-
 // Update breakdown when view selection changes
 breakdownViewSelect.addEventListener('change', () => {
     if (calculationData) {
@@ -75,23 +73,20 @@ breakdownViewSelect.addEventListener('change', () => {
     }
 });
 
-function updateRateLabel() {
-    const rateLabel = document.getElementById('interest-rate-label');
-    const frequency = parseInt(compoundingFrequencySelect.value);
-
-    if (frequency === 365) {
-        rateLabel.textContent = 'Daily Interest Rate (%)';
-    } else if (frequency === 12) {
-        rateLabel.textContent = 'Monthly Interest Rate (%)';
-    } else if (frequency === 4) {
-        rateLabel.textContent = 'Quarterly Interest Rate (%)';
-    } else {
-        rateLabel.textContent = 'Annual Interest Rate (%)';
+// Convert entered rate to annual rate based on rate type
+function convertToAnnualRate(rate, rateType) {
+    switch (rateType) {
+        case 'daily':
+            return rate * 365;
+        case 'monthly':
+            return rate * 12;
+        case 'quarterly':
+            return rate * 4;
+        case 'annual':
+        default:
+            return rate;
     }
 }
-
-// Initialize label
-updateRateLabel();
 
 // Set start date to today by default
 function setDefaultStartDate() {
@@ -135,7 +130,8 @@ function calculate() {
         try {
             // Get inputs
             const principal = parseFloat(principalInput.value) || 0;
-            const periodRatePercent = parseFloat(interestRateInput.value) || 0;
+            const enteredRatePercent = parseFloat(interestRateInput.value) || 0;
+            const rateType = rateTypeSelect.value;
             const compoundingFrequency = parseInt(compoundingFrequencySelect.value);
 
             // Validation
@@ -144,10 +140,14 @@ function calculate() {
                 return;
             }
 
-            if (periodRatePercent < 0) {
+            if (enteredRatePercent < 0) {
                 alert('Please enter a valid interest rate');
                 return;
             }
+
+            // Convert entered rate to annual rate, then to period rate
+            const annualRatePercent = convertToAnnualRate(enteredRatePercent, rateType);
+            const periodRatePercent = annualRatePercent / compoundingFrequency;
 
             // Calculate time period
             let timeInYears;
@@ -193,8 +193,9 @@ function calculate() {
             }
 
             // Calculate compound interest
-            // Formula: A = P(1 + r)^n
-            // Where r is the period rate (as decimal) and n is the number of periods
+            // Formula: A = P(1 + r/n)^(nt)
+            // Where r is annual rate, n is compounding frequency, t is time in years
+            // We've already calculated the period rate (r/n) as periodRatePercent
             const periodRate = periodRatePercent / 100; // Convert percentage to decimal
             const numberOfPeriods = compoundingFrequency * timeInYears;
             const finalAmount = principal * Math.pow((1 + periodRate), numberOfPeriods);
