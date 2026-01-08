@@ -10,6 +10,7 @@ const startDateInput = document.getElementById('start-date');
 const endDateInput = document.getElementById('end-date');
 const calculateBtn = document.getElementById('calculate-btn');
 const resultsSection = document.getElementById('results');
+const calculatorWrapper = document.querySelector('.calculator-wrapper');
 const breakdownViewSelect = document.getElementById('breakdown-view');
 const themeToggle = document.getElementById('theme-toggle');
 
@@ -234,7 +235,8 @@ function displayResults(principal, finalAmount, totalInterest, periodText, rate,
     // Generate breakdown table
     generateBreakdown(principal, rate, compoundingFrequency, timeInYears, startDate);
 
-    // Show results section
+    // Show results section and update layout
+    calculatorWrapper.classList.add('has-results');
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }

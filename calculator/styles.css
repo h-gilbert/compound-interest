@@ -154,10 +154,16 @@ header h1 {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .calculator-wrapper {
-    display: grid;
-    grid-template-columns: 360px 1fr;
+    display: flex;
+    justify-content: center;
     gap: calc(var(--unit) * 4);
     align-items: start;
+    transition: justify-content 0.4s var(--ease);
+}
+
+/* When results are visible, align to start (left) */
+.calculator-wrapper.has-results {
+    justify-content: flex-start;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -165,6 +171,8 @@ header h1 {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .calculator-section {
+    width: 360px;
+    min-width: 360px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: calc(var(--unit) * 1.5);
@@ -378,11 +386,25 @@ header h1 {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .results-section {
+    flex: 1;
+    max-width: 800px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: calc(var(--unit) * 1.5);
     padding: calc(var(--unit) * 3);
     transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+    animation: slideIn 0.4s var(--ease) forwards;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .results-section h2 {
@@ -593,11 +615,23 @@ header h1 {
 
 @media (max-width: 1024px) {
     .calculator-wrapper {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .calculator-wrapper.has-results {
+        align-items: stretch;
     }
 
     .calculator-section {
         position: static;
+        width: 100%;
+        min-width: auto;
+        max-width: 480px;
+    }
+
+    .results-section {
+        max-width: 100%;
     }
 
     .data-grid {
