@@ -3,6 +3,8 @@ const principalInput = document.getElementById('principal');
 const interestRateInput = document.getElementById('interest-rate');
 const rateTypeSelect = document.getElementById('rate-type');
 const compoundingFrequencySelect = document.getElementById('compounding-frequency');
+const contributionAmountInput = document.getElementById('contribution-amount');
+const contributionFrequencySelect = document.getElementById('contribution-frequency');
 const yearsInput = document.getElementById('years');
 const monthsInput = document.getElementById('months');
 const daysInput = document.getElementById('days');
@@ -34,6 +36,8 @@ function toggleTheme() {
             calculationData.principal,
             calculationData.rate,
             calculationData.compoundingFrequency,
+            calculationData.contributionAmount,
+            calculationData.contributionFrequency,
             calculationData.timeInYears
         );
     }
@@ -47,10 +51,14 @@ themeToggle.addEventListener('click', toggleTheme);
 
 // Result elements
 const finalAmountEl = document.getElementById('final-amount');
+const totalContributionsEl = document.getElementById('total-contributions');
+const contributionsCardEl = document.getElementById('contributions-card');
 const totalInterestEl = document.getElementById('total-interest');
 const calculationPeriodEl = document.getElementById('calculation-period');
 const breakdownTableEl = document.getElementById('breakdown-table');
 const growthChartCanvas = document.getElementById('growth-chart');
+const formulaDisplayEl = document.getElementById('formula-display');
+const formulaWithContributionsEl = document.getElementById('formula-with-contributions');
 
 // Chart instance
 let growthChart = null;
@@ -61,6 +69,54 @@ let calculationData = null;
 // Event Listeners
 calculateBtn.addEventListener('click', calculate);
 
+// Cmd+Enter or Ctrl+Enter to calculate from anywhere
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        calculate();
+    }
+});
+
+// Make Enter key open select dropdowns (browsers natively use Space)
+document.querySelectorAll('select').forEach(select => {
+    let isExpanded = false;
+    const originalSize = select.size;
+
+    select.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !isExpanded) {
+            e.preventDefault();
+            // Expand select by showing all options
+            isExpanded = true;
+            select.size = select.options.length;
+            select.dataset.expanded = 'true';
+        } else if ((e.key === 'Enter' || e.key === 'Escape') && isExpanded) {
+            e.preventDefault();
+            // Collapse select
+            isExpanded = false;
+            select.size = originalSize || 1;
+            delete select.dataset.expanded;
+        }
+    });
+
+    select.addEventListener('change', () => {
+        // Collapse after selection
+        if (isExpanded) {
+            isExpanded = false;
+            select.size = originalSize || 1;
+            delete select.dataset.expanded;
+        }
+    });
+
+    select.addEventListener('blur', () => {
+        // Collapse on blur
+        if (isExpanded) {
+            isExpanded = false;
+            select.size = originalSize || 1;
+            delete select.dataset.expanded;
+        }
+    });
+});
+
 // Update breakdown when view selection changes
 breakdownViewSelect.addEventListener('change', () => {
     if (calculationData) {
@@ -68,6 +124,8 @@ breakdownViewSelect.addEventListener('change', () => {
             calculationData.principal,
             calculationData.rate,
             calculationData.compoundingFrequency,
+            calculationData.contributionAmount,
+            calculationData.contributionFrequency,
             calculationData.timeInYears,
             calculationData.startDate
         );
@@ -89,6 +147,55 @@ function convertToAnnualRate(rate, rateType) {
     }
 }
 
+// Calculate compound interest with regular contributions
+// Uses the Future Value of Annuity formula for contributions
+function calculateWithContributions(principal, periodRate, compoundingFreq, contributionAmount, contributionFreq, timeInYears) {
+    // Calculate principal growth: A = P(1 + r)^n
+    const numberOfPeriods = compoundingFreq * timeInYears;
+    const principalGrowth = principal * Math.pow((1 + periodRate), numberOfPeriods);
+
+    // If no contributions, return just principal growth
+    if (contributionFreq === 0 || contributionAmount <= 0) {
+        return {
+            finalAmount: principalGrowth,
+            totalContributions: 0,
+            totalInterest: principalGrowth - principal,
+            principalOnly: principalGrowth
+        };
+    }
+
+    // Calculate contribution growth
+    // For each contribution, calculate its future value based on remaining time
+    // This handles different contribution and compounding frequencies correctly
+    const totalContributionPeriods = contributionFreq * timeInYears;
+    const contributionPeriodInYears = 1 / contributionFreq;
+
+    let contributionGrowth = 0;
+    for (let i = 1; i <= totalContributionPeriods; i++) {
+        // Time remaining for this contribution to grow
+        const contributionTime = i * contributionPeriodInYears;
+        const remainingTime = timeInYears - contributionTime;
+
+        if (remainingTime >= 0) {
+            // Calculate how much this contribution grows
+            const periodsRemaining = compoundingFreq * remainingTime;
+            const contributionFV = contributionAmount * Math.pow((1 + periodRate), periodsRemaining);
+            contributionGrowth += contributionFV;
+        }
+    }
+
+    const totalContributions = contributionAmount * totalContributionPeriods;
+    const finalAmount = principalGrowth + contributionGrowth;
+    const totalInterest = finalAmount - principal - totalContributions;
+
+    return {
+        finalAmount,
+        totalContributions,
+        totalInterest,
+        principalOnly: principalGrowth
+    };
+}
+
 // Set start date to today by default
 function setDefaultStartDate() {
     const today = new Date();
@@ -100,6 +207,80 @@ function setDefaultStartDate() {
 
 // Set default start date on page load
 setDefaultStartDate();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOCAL STORAGE PERSISTENCE
+// ═══════════════════════════════════════════════════════════════════════════
+
+const STORAGE_KEY = 'compound-calculator-data';
+
+function saveToLocalStorage() {
+    const data = {
+        principal: principalInput.value,
+        interestRate: interestRateInput.value,
+        rateType: rateTypeSelect.value,
+        compoundingFrequency: compoundingFrequencySelect.value,
+        contributionAmount: contributionAmountInput.value,
+        contributionFrequency: contributionFrequencySelect.value,
+        years: yearsInput.value,
+        months: monthsInput.value,
+        days: daysInput.value,
+        startDate: startDateInput.value,
+        endDate: endDateInput.value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadFromLocalStorage() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return false;
+
+    try {
+        const data = JSON.parse(saved);
+
+        if (data.principal) principalInput.value = data.principal;
+        if (data.interestRate) interestRateInput.value = data.interestRate;
+        if (data.rateType) rateTypeSelect.value = data.rateType;
+        if (data.compoundingFrequency) compoundingFrequencySelect.value = data.compoundingFrequency;
+        if (data.contributionAmount) contributionAmountInput.value = data.contributionAmount;
+        if (data.contributionFrequency) contributionFrequencySelect.value = data.contributionFrequency;
+        if (data.years) yearsInput.value = data.years;
+        if (data.months) monthsInput.value = data.months;
+        if (data.days) daysInput.value = data.days;
+        if (data.startDate) startDateInput.value = data.startDate;
+        if (data.endDate) endDateInput.value = data.endDate;
+
+        return true;
+    } catch (e) {
+        console.error('Failed to load saved data:', e);
+        return false;
+    }
+}
+
+// Add change listeners to all inputs to auto-save
+const allInputs = [
+    principalInput, interestRateInput, rateTypeSelect, compoundingFrequencySelect,
+    contributionAmountInput, contributionFrequencySelect,
+    yearsInput, monthsInput, daysInput, startDateInput, endDateInput
+];
+
+allInputs.forEach(input => {
+    input.addEventListener('input', saveToLocalStorage);
+    input.addEventListener('change', saveToLocalStorage);
+});
+
+// Load saved data on page load (after default date is set)
+if (loadFromLocalStorage()) {
+    // Auto-calculate if we have enough data
+    const hasAmount = parseFloat(principalInput.value) > 0 || parseFloat(contributionAmountInput.value) > 0;
+    const hasTime = (parseInt(yearsInput.value) > 0 || parseInt(monthsInput.value) > 0 || parseInt(daysInput.value) > 0)
+                   || (startDateInput.value && endDateInput.value);
+
+    if (hasAmount && hasTime) {
+        // Small delay to ensure DOM is ready
+        setTimeout(calculate, 100);
+    }
+}
 
 // Clear end date input when time period inputs change (but keep start date)
 [yearsInput, monthsInput, daysInput].forEach(input => {
@@ -134,10 +315,12 @@ function calculate() {
             const enteredRatePercent = parseFloat(interestRateInput.value) || 0;
             const rateType = rateTypeSelect.value;
             const compoundingFrequency = parseInt(compoundingFrequencySelect.value);
+            const contributionAmount = parseFloat(contributionAmountInput.value) || 0;
+            const contributionFrequency = parseInt(contributionFrequencySelect.value);
 
             // Validation
-            if (principal <= 0) {
-                alert('Please enter a valid principal amount');
+            if (principal <= 0 && contributionAmount <= 0) {
+                alert('Please enter a principal amount or contribution amount');
                 return;
             }
 
@@ -193,17 +376,32 @@ function calculate() {
                 periodText = formatTimePeriodFromInputs(years, months, days);
             }
 
-            // Calculate compound interest
-            // Formula: A = P(1 + r/n)^(nt)
-            // Where r is annual rate, n is compounding frequency, t is time in years
-            // We've already calculated the period rate (r/n) as periodRatePercent
+            // Calculate compound interest with contributions
             const periodRate = periodRatePercent / 100; // Convert percentage to decimal
-            const numberOfPeriods = compoundingFrequency * timeInYears;
-            const finalAmount = principal * Math.pow((1 + periodRate), numberOfPeriods);
-            const totalInterest = finalAmount - principal;
+            const results = calculateWithContributions(
+                principal,
+                periodRate,
+                compoundingFrequency,
+                contributionAmount,
+                contributionFrequency,
+                timeInYears
+            );
 
             // Display results
-            displayResults(principal, finalAmount, totalInterest, periodText, periodRate, compoundingFrequency, timeInYears, startDate, endDate);
+            displayResults(
+                principal,
+                results.finalAmount,
+                results.totalInterest,
+                results.totalContributions,
+                periodText,
+                periodRate,
+                compoundingFrequency,
+                contributionAmount,
+                contributionFrequency,
+                timeInYears,
+                startDate,
+                endDate
+            );
 
         } catch (error) {
             alert('An error occurred during calculation. Please check your inputs.');
@@ -215,13 +413,35 @@ function calculate() {
     }, 300); // Small delay for better UX
 }
 
-function displayResults(principal, finalAmount, totalInterest, periodText, rate, compoundingFrequency, timeInYears, startDate, endDate) {
+function displayResults(principal, finalAmount, totalInterest, totalContributions, periodText, rate, compoundingFrequency, contributionAmount, contributionFrequency, timeInYears, startDate, endDate) {
     // Store calculation data
-    calculationData = { principal, rate, compoundingFrequency, timeInYears, startDate, endDate };
+    calculationData = {
+        principal,
+        rate,
+        compoundingFrequency,
+        contributionAmount,
+        contributionFrequency,
+        timeInYears,
+        startDate,
+        endDate
+    };
 
     // Format currency
     finalAmountEl.textContent = formatCurrency(finalAmount);
     totalInterestEl.textContent = formatCurrency(totalInterest);
+
+    // Show/hide contributions card based on whether contributions are used
+    const hasContributions = contributionFrequency > 0 && contributionAmount > 0;
+    if (hasContributions) {
+        totalContributionsEl.textContent = formatCurrency(totalContributions);
+        contributionsCardEl.style.display = 'block';
+        formulaDisplayEl.style.display = 'none';
+        formulaWithContributionsEl.style.display = 'flex';
+    } else {
+        contributionsCardEl.style.display = 'none';
+        formulaDisplayEl.style.display = 'flex';
+        formulaWithContributionsEl.style.display = 'none';
+    }
 
     // Display end date
     calculationPeriodEl.textContent = formatDateLong(endDate);
@@ -230,10 +450,10 @@ function displayResults(principal, finalAmount, totalInterest, periodText, rate,
     setupBreakdownViewOptions(compoundingFrequency, timeInYears);
 
     // Generate chart
-    generateChart(principal, rate, compoundingFrequency, timeInYears);
+    generateChart(principal, rate, compoundingFrequency, contributionAmount, contributionFrequency, timeInYears);
 
     // Generate breakdown table
-    generateBreakdown(principal, rate, compoundingFrequency, timeInYears, startDate);
+    generateBreakdown(principal, rate, compoundingFrequency, contributionAmount, contributionFrequency, timeInYears, startDate);
 
     // Show results section and update layout
     calculatorWrapper.classList.add('has-results');
@@ -289,7 +509,148 @@ function setupBreakdownViewOptions(compoundingFrequency, timeInYears) {
     breakdownViewSelect.value = defaultView;
 }
 
-function generateChart(principal, rate, compoundingFrequency, timeInYears) {
+// Custom tooltip element
+let chartTooltipEl = null;
+
+function getOrCreateTooltip(chart) {
+    if (!chartTooltipEl) {
+        chartTooltipEl = document.createElement('div');
+        chartTooltipEl.className = 'chart-tooltip';
+        document.body.appendChild(chartTooltipEl);
+    }
+    return chartTooltipEl;
+}
+
+function externalTooltipHandler(context) {
+    const { chart, tooltip } = context;
+    const tooltipEl = getOrCreateTooltip(chart);
+
+    // Hide tooltip if not visible
+    if (tooltip.opacity === 0) {
+        tooltipEl.classList.remove('visible');
+        return;
+    }
+
+    // Get theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const accentColor = '#c17f24';
+    const baselineColor = isDark ? '#666666' : '#aaaaaa';
+
+    // Build tooltip content
+    if (tooltip.body) {
+        const titleLines = tooltip.title || [];
+        const dataPoints = tooltip.dataPoints || [];
+
+        let innerHtml = '';
+
+        // Header with time label
+        if (titleLines.length > 0) {
+            innerHtml += `<div class="chart-tooltip-header">${titleLines[0]}</div>`;
+        }
+
+        // Data rows
+        dataPoints.forEach((dataPoint, i) => {
+            const dataset = dataPoint.dataset;
+            const value = formatCurrency(dataPoint.parsed.y);
+            const color = dataset.borderColor;
+            const label = dataset.label === 'Total Balance' ? 'Balance' : 'Contributions';
+
+            innerHtml += `
+                <div class="chart-tooltip-row">
+                    <span class="chart-tooltip-label">
+                        <span class="chart-tooltip-dot" style="background: ${color}; ${dataset.borderDash ? 'border: 2px dashed ' + color + '; background: transparent;' : ''}"></span>
+                        ${label}
+                    </span>
+                    <span class="chart-tooltip-value">${value}</span>
+                </div>
+            `;
+        });
+
+        // Interest earned indicator (if we have both datasets)
+        if (dataPoints.length === 2) {
+            const balance = dataPoints.find(d => d.dataset.label === 'Total Balance')?.parsed.y || 0;
+            const baseline = dataPoints.find(d => d.dataset.label === 'Principal + Contributions')?.parsed.y || 0;
+            const interest = balance - baseline;
+            if (interest > 0) {
+                innerHtml += `<div class="chart-tooltip-interest">Interest earned: <span>+${formatCurrency(interest)}</span></div>`;
+            }
+        }
+
+        tooltipEl.innerHTML = innerHtml;
+    }
+
+    // Position tooltip
+    const position = chart.canvas.getBoundingClientRect();
+    const tooltipWidth = tooltipEl.offsetWidth;
+    const tooltipHeight = tooltipEl.offsetHeight;
+
+    let left = position.left + window.scrollX + tooltip.caretX + 12;
+    let top = position.top + window.scrollY + tooltip.caretY - tooltipHeight / 2;
+
+    // Keep tooltip within viewport
+    if (left + tooltipWidth > window.innerWidth - 20) {
+        left = position.left + window.scrollX + tooltip.caretX - tooltipWidth - 12;
+    }
+    if (top < 10) {
+        top = 10;
+    }
+    if (top + tooltipHeight > window.innerHeight - 10) {
+        top = window.innerHeight - tooltipHeight - 10;
+    }
+
+    tooltipEl.style.left = left + 'px';
+    tooltipEl.style.top = top + 'px';
+    tooltipEl.classList.add('visible');
+}
+
+// Crosshair plugin
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw: (chart) => {
+        if (chart.tooltip?._active?.length) {
+            const ctx = chart.ctx;
+            const activePoint = chart.tooltip._active[0];
+            const x = activePoint.element.x;
+            const topY = chart.scales.y.top;
+            const bottomY = chart.scales.y.bottom;
+
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x, topY);
+            ctx.lineTo(x, bottomY);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+};
+
+// Dynamic gradient plugin - creates gradient that scales with chart area
+const dynamicGradientPlugin = {
+    id: 'dynamicGradient',
+    beforeDraw: (chart) => {
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+        if (!chartArea) return;
+
+        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        gradient.addColorStop(0, isDark ? 'rgba(193, 127, 36, 0.35)' : 'rgba(193, 127, 36, 0.25)');
+        gradient.addColorStop(0.5, isDark ? 'rgba(193, 127, 36, 0.12)' : 'rgba(193, 127, 36, 0.1)');
+        gradient.addColorStop(1, 'rgba(193, 127, 36, 0)');
+
+        const balanceDataset = chart.data.datasets.find(d => d.label === 'Total Balance');
+        if (balanceDataset) {
+            balanceDataset.backgroundColor = gradient;
+        }
+    }
+};
+
+function generateChart(principal, rate, compoundingFrequency, contributionAmount, contributionFrequency, timeInYears) {
     // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded');
@@ -301,32 +662,56 @@ function generateChart(principal, rate, compoundingFrequency, timeInYears) {
         growthChart.destroy();
     }
 
-    // Limit data points for clean visualization (max 12 points)
-    let dataPoints = Math.min(Math.ceil(timeInYears * 4), 12);
-    if (dataPoints < 4) dataPoints = Math.min(Math.ceil(timeInYears * 12), 12);
+    // More data points for smoother curves
+    let dataPoints;
+    if (timeInYears <= 1) {
+        dataPoints = Math.max(12, Math.ceil(timeInYears * 52));
+    } else if (timeInYears <= 5) {
+        dataPoints = Math.max(24, Math.ceil(timeInYears * 12));
+    } else if (timeInYears <= 20) {
+        dataPoints = Math.max(40, Math.ceil(timeInYears * 4));
+    } else {
+        dataPoints = Math.min(Math.ceil(timeInYears * 2), 80);
+    }
+    dataPoints = Math.min(dataPoints, 100);
     let timeIncrement = timeInYears / dataPoints;
 
     const labels = [];
     const balanceData = [];
+    const baselineData = []; // Principal + contributions (no interest)
+
+    const hasContributions = contributionFrequency > 0 && contributionAmount > 0;
 
     // Generate data points
     for (let i = 0; i <= dataPoints; i++) {
         const currentTime = i * timeIncrement;
-        const numberOfPeriods = compoundingFrequency * currentTime;
-        const currentBalance = principal * Math.pow((1 + rate), numberOfPeriods);
+
+        // Calculate total balance with compound interest and contributions
+        const results = calculateWithContributions(
+            principal,
+            rate,
+            compoundingFrequency,
+            contributionAmount,
+            contributionFrequency,
+            currentTime
+        );
+
+        // Calculate baseline (principal + contributions without interest)
+        let baseline = principal;
+        if (hasContributions) {
+            const contributionsMade = Math.floor(contributionFrequency * currentTime);
+            baseline = principal + (contributionAmount * contributionsMade);
+        }
 
         // Create clean, minimal labels
         let label;
         if (timeInYears <= 0.25) {
-            // Show in days for very short periods
             const days = Math.round(currentTime * 365);
             label = days === 0 ? 'Start' : `${days}d`;
         } else if (timeInYears <= 1) {
-            // Show in months for short periods
             const months = Math.round(currentTime * 12);
             label = months === 0 ? 'Start' : `${months}mo`;
         } else {
-            // Show in years for longer periods
             const years = currentTime;
             if (years === 0) {
                 label = 'Start';
@@ -338,113 +723,135 @@ function generateChart(principal, rate, compoundingFrequency, timeInYears) {
         }
 
         labels.push(label);
-        balanceData.push(currentBalance);
+        balanceData.push(results.finalAmount);
+        baselineData.push(baseline);
     }
 
     // Get theme-aware colors
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const textColor = isDark ? '#666666' : '#999999';
-    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-    const tooltipBg = isDark ? '#1a1a1a' : '#ffffff';
-    const tooltipText = isDark ? '#f0f0f0' : '#1a1a1a';
+    const gridColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
     const accentColor = '#c17f24';
+    const baselineColor = isDark ? '#555555' : '#aaaaaa';
 
-    // Create gradient for area fill
     const ctx = growthChartCanvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-    gradient.addColorStop(0, isDark ? 'rgba(193, 127, 36, 0.25)' : 'rgba(193, 127, 36, 0.15)');
-    gradient.addColorStop(1, isDark ? 'rgba(193, 127, 36, 0)' : 'rgba(193, 127, 36, 0)');
 
-    // Create chart with refined, minimal aesthetic
+    // Build datasets array
+    const datasets = [];
+
+    // Add baseline dataset if contributions are enabled
+    if (hasContributions) {
+        datasets.push({
+            label: 'Principal + Contributions',
+            data: baselineData,
+            borderColor: baselineColor,
+            backgroundColor: 'transparent',
+            fill: false,
+            tension: 0.4,
+            borderWidth: 2,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+            pointHoverBorderColor: baselineColor,
+            pointHoverBorderWidth: 3
+        });
+    }
+
+    // Add main balance dataset
+    datasets.push({
+        label: 'Total Balance',
+        data: balanceData,
+        borderColor: accentColor,
+        backgroundColor: 'transparent', // Dynamic gradient plugin will replace this
+        fill: true,
+        tension: 0.4,
+        borderWidth: 3,
+        pointRadius: 0,
+        pointHoverRadius: 8,
+        pointHitRadius: 8,
+        pointHoverBackgroundColor: accentColor,
+        pointHoverBorderColor: isDark ? '#1a1a1a' : '#ffffff',
+        pointHoverBorderWidth: 3
+    });
+
+    // Register plugins if not already registered
+    if (!Chart.registry.plugins.get('crosshair')) {
+        Chart.register(crosshairPlugin);
+    }
+    if (!Chart.registry.plugins.get('dynamicGradient')) {
+        Chart.register(dynamicGradientPlugin);
+    }
+
+    // Create chart
     growthChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [
-                {
-                    label: 'Balance',
-                    data: balanceData,
-                    borderColor: accentColor,
-                    backgroundColor: gradient,
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
-                    pointHoverBackgroundColor: accentColor,
-                    pointHoverBorderColor: isDark ? '#1a1a1a' : '#ffffff',
-                    pointHoverBorderWidth: 2
-                }
-            ]
+            datasets: datasets
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
-            aspectRatio: 1.6,
+            maintainAspectRatio: false,
+            devicePixelRatio: window.devicePixelRatio || 1,
             layout: {
                 padding: {
-                    top: 8,
-                    right: 8,
-                    bottom: 0,
-                    left: 0
+                    top: 24,
+                    right: 24,
+                    bottom: 16,
+                    left: 16
                 }
+            },
+            animation: {
+                duration: 600,
+                easing: 'easeOutQuart'
             },
             plugins: {
                 legend: {
-                    display: false
+                    display: hasContributions,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: 'line',
+                        boxWidth: 32,
+                        boxHeight: 2,
+                        padding: 20,
+                        font: {
+                            family: "'IBM Plex Mono', monospace",
+                            size: 12,
+                            weight: '500'
+                        },
+                        color: textColor
+                    }
                 },
                 tooltip: {
-                    enabled: true,
+                    enabled: false,
+                    external: externalTooltipHandler,
                     mode: 'index',
-                    intersect: false,
-                    backgroundColor: tooltipBg,
-                    titleColor: accentColor,
-                    titleFont: {
-                        family: "'IBM Plex Mono', monospace",
-                        size: 10,
-                        weight: '500'
-                    },
-                    bodyColor: tooltipText,
-                    bodyFont: {
-                        family: "'IBM Plex Mono', monospace",
-                        size: 12,
-                        weight: '600'
-                    },
-                    borderColor: isDark ? '#2a2a2a' : '#e0e0e0',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 4,
-                    displayColors: false,
-                    callbacks: {
-                        title: function(tooltipItems) {
-                            return tooltipItems[0].label;
-                        },
-                        label: function(context) {
-                            return formatCurrency(context.parsed.y);
-                        }
-                    }
+                    intersect: false
                 }
             },
             scales: {
                 y: {
                     beginAtZero: false,
-                    grace: '10%',
+                    grace: '15%',
                     ticks: {
-                        maxTicksLimit: 5,
+                        maxTicksLimit: 7,
                         callback: function(value) {
                             if (value >= 1000000) {
                                 return '$' + (value / 1000000).toFixed(1) + 'M';
                             } else if (value >= 1000) {
-                                return '$' + (value / 1000).toFixed(0) + 'K';
+                                return '$' + Math.round(value / 1000) + 'K';
                             }
                             return '$' + value.toLocaleString();
                         },
                         color: textColor,
                         font: {
                             family: "'IBM Plex Mono', monospace",
-                            size: 9
+                            size: 12
                         },
-                        padding: 8
+                        padding: 16
                     },
                     grid: {
                         color: gridColor,
@@ -459,12 +866,14 @@ function generateChart(principal, rate, compoundingFrequency, timeInYears) {
                     ticks: {
                         maxRotation: 0,
                         minRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
                         color: textColor,
                         font: {
                             family: "'IBM Plex Mono', monospace",
-                            size: 9
+                            size: 12
                         },
-                        padding: 4
+                        padding: 12
                     },
                     grid: {
                         display: false
@@ -482,17 +891,22 @@ function generateChart(principal, rate, compoundingFrequency, timeInYears) {
                 line: {
                     capBezierPoints: true
                 }
+            },
+            onHover: (event, activeElements) => {
+                event.native.target.style.cursor = activeElements.length ? 'crosshair' : 'default';
             }
         }
     });
 }
 
-function generateBreakdown(principal, rate, compoundingFrequency, timeInYears, startDate) {
+function generateBreakdown(principal, rate, compoundingFrequency, contributionAmount, contributionFrequency, timeInYears, startDate) {
     const viewMode = breakdownViewSelect.value;
     let periodLabel;
     let periodsToShow;
     let periodIncrement; // in years
     let periodIncrementDays; // in days for date calculation
+
+    const hasContributions = contributionFrequency > 0 && contributionAmount > 0;
 
     // Determine period settings based on view mode
     switch(viewMode) {
@@ -535,12 +949,16 @@ function generateBreakdown(principal, rate, compoundingFrequency, timeInYears, s
 
     let tableHTML = '<table class="breakdown-table"><thead><tr>';
     tableHTML += `<th>${periodLabel}</th>`;
+    if (hasContributions) {
+        tableHTML += '<th>Contribution</th>';
+    }
     tableHTML += '<th>Balance</th>';
     tableHTML += '<th>Interest Earned</th>';
     tableHTML += '<th>Total Interest</th>';
     tableHTML += '</tr></thead><tbody>';
 
     let previousBalance = principal;
+    let previousContributions = 0;
 
     for (let period = 1; period <= periodsToShow; period++) {
         const currentTime = Math.min(period * periodIncrement, timeInYears);
@@ -557,13 +975,23 @@ function generateBreakdown(principal, rate, compoundingFrequency, timeInYears, s
             currentDate.setDate(currentDate.getDate() + (period * periodIncrementDays));
         }
 
-        // Calculate balance using compound interest formula
-        // A = P(1 + r)^n where r is period rate, n is number of periods
-        const numberOfPeriods = compoundingFrequency * currentTime;
-        const currentBalance = principal * Math.pow((1 + rate), numberOfPeriods);
+        // Calculate balance with contributions
+        const results = calculateWithContributions(
+            principal,
+            rate,
+            compoundingFrequency,
+            contributionAmount,
+            contributionFrequency,
+            currentTime
+        );
 
-        const periodInterest = currentBalance - previousBalance;
-        const totalInterest = currentBalance - principal;
+        const currentBalance = results.finalAmount;
+        const totalContributions = results.totalContributions;
+        const periodContribution = totalContributions - previousContributions;
+
+        // Calculate period interest (balance change minus contribution added this period)
+        const periodInterest = currentBalance - previousBalance - periodContribution;
+        const totalInterest = results.totalInterest;
 
         // Format the date based on view mode
         let dateDisplay;
@@ -575,12 +1003,16 @@ function generateBreakdown(principal, rate, compoundingFrequency, timeInYears, s
 
         tableHTML += '<tr>';
         tableHTML += `<td>${dateDisplay}</td>`;
+        if (hasContributions) {
+            tableHTML += `<td>${formatCurrency(periodContribution)}</td>`;
+        }
         tableHTML += `<td>${formatCurrency(currentBalance)}</td>`;
         tableHTML += `<td>${formatCurrency(periodInterest)}</td>`;
         tableHTML += `<td>${formatCurrency(totalInterest)}</td>`;
         tableHTML += '</tr>';
 
         previousBalance = currentBalance;
+        previousContributions = totalContributions;
 
         // Stop if we've reached the end of the investment period
         if (currentTime >= timeInYears) break;

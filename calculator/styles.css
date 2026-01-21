@@ -144,6 +144,13 @@ header h1 {
     color: var(--accent);
 }
 
+.theme-toggle:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-muted);
+    color: var(--accent);
+}
+
 .icon-sun { display: none; }
 .icon-moon { display: block; }
 [data-theme="dark"] .icon-sun { display: block; }
@@ -200,6 +207,7 @@ header h1 {
 
 .form-group {
     margin-bottom: calc(var(--unit) * 2);
+    position: relative;
 }
 
 .form-group label {
@@ -240,6 +248,15 @@ header h1 {
     outline: none;
     border-color: var(--border-focus);
     background: var(--bg-input-focus);
+    box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+/* Focus visible for keyboard navigation */
+.form-group input:focus-visible,
+.form-group select:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 /* Select dropdown arrow */
@@ -254,6 +271,32 @@ header h1 {
 .form-group select option {
     background: var(--bg-card);
     color: var(--text-primary);
+}
+
+/* Expanded select (keyboard Enter) */
+.form-group select[data-expanded="true"] {
+    position: absolute;
+    z-index: 100;
+    height: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .form-group select[data-expanded="true"] {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.form-group select[data-expanded="true"] option {
+    padding: calc(var(--unit) * 1) calc(var(--unit) * 1.5);
+}
+
+.form-group select[data-expanded="true"] option:hover,
+.form-group select[data-expanded="true"] option:focus {
+    background: var(--accent-muted);
+}
+
+.form-group select[data-expanded="true"] option:checked {
+    background: var(--accent);
+    color: var(--text-on-accent);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -359,6 +402,11 @@ header h1 {
     transform: scale(0.98);
 }
 
+.btn-calculate:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-muted), 0 0 0 5px var(--accent);
+}
+
 .btn-calculate.loading {
     opacity: 0.7;
     cursor: wait;
@@ -427,6 +475,10 @@ header h1 {
     margin-bottom: calc(var(--unit) * 3);
 }
 
+.results-grid.four-columns {
+    grid-template-columns: repeat(4, 1fr);
+}
+
 .result-card {
     background: var(--bg-input);
     border: 1px solid var(--border);
@@ -472,7 +524,7 @@ header h1 {
 
 .data-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: calc(var(--unit) * 2);
 }
 
@@ -509,9 +561,15 @@ header h1 {
     min-width: auto;
 }
 
+.breakdown-view-select:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
 /* Table */
 .breakdown-table {
-    max-height: 280px;
+    max-height: 300px;
     overflow-y: auto;
 }
 
@@ -555,13 +613,106 @@ header h1 {
 
 /* Chart */
 .chart-section h3 {
-    margin-bottom: calc(var(--unit) * 2);
+    margin-bottom: calc(var(--unit) * 3);
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    min-height: 320px;
 }
 
 .chart-section canvas {
-    width: 100% !important;
-    height: 260px !important;
-    max-height: 260px;
+    display: block;
+}
+
+/* Custom Chart Tooltip */
+.chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--unit) * 1);
+    padding: calc(var(--unit) * 1.5) calc(var(--unit) * 2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    transform: translateY(4px);
+    min-width: 180px;
+}
+
+.chart-tooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+[data-theme="dark"] .chart-tooltip {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.chart-tooltip-header {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: calc(var(--unit) * 1);
+    padding-bottom: calc(var(--unit) * 0.75);
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.02em;
+}
+
+.chart-tooltip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--unit) * 2);
+    padding: calc(var(--unit) * 0.5) 0;
+}
+
+.chart-tooltip-row:first-of-type {
+    padding-top: 0;
+}
+
+.chart-tooltip-label {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--unit) * 0.75);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.chart-tooltip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.chart-tooltip-value {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.chart-tooltip-interest {
+    margin-top: calc(var(--unit) * 0.75);
+    padding-top: calc(var(--unit) * 0.75);
+    border-top: 1px dashed var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.chart-tooltip-interest span {
+    color: #22c55e;
+    font-weight: 600;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -613,6 +764,25 @@ header h1 {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════ */
 
+@media (min-width: 1200px) {
+    .chart-container {
+        height: 440px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .results-grid.four-columns {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        height: 360px;
+        min-height: 320px;
+    }
+}
+
 @media (max-width: 1024px) {
     .calculator-wrapper {
         flex-direction: column;
@@ -634,11 +804,17 @@ header h1 {
         max-width: 100%;
     }
 
-    .data-grid {
+    .results-grid {
         grid-template-columns: 1fr;
     }
 
-    .results-grid {
+    .results-grid.four-columns {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .results-grid.four-columns {
         grid-template-columns: 1fr;
     }
 }

@@ -49,7 +49,27 @@
                     <label for="compounding-frequency">Compounding Frequency</label>
                     <select id="compounding-frequency">
                         <option value="365">Daily</option>
+                        <option value="52">Weekly</option>
                         <option value="12" selected>Monthly</option>
+                        <option value="4">Quarterly</option>
+                        <option value="1">Annually</option>
+                    </select>
+                </div>
+
+                <h2>Regular Contributions</h2>
+
+                <div class="form-group">
+                    <label for="contribution-amount">Contribution Amount ($)</label>
+                    <input type="number" id="contribution-amount" placeholder="0" step="0.01" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="contribution-frequency">Contribution Frequency</label>
+                    <select id="contribution-frequency">
+                        <option value="0" selected>None</option>
+                        <option value="52">Weekly</option>
+                        <option value="26">Bi-weekly</option>
+                        <option value="12">Monthly</option>
                         <option value="4">Quarterly</option>
                         <option value="1">Annually</option>
                     </select>
@@ -94,10 +114,15 @@
             <div class="results-section" id="results" style="display: none;">
                 <h2>Results</h2>
 
-                <div class="results-grid">
+                <div class="results-grid four-columns">
                     <div class="result-card primary">
                         <div class="result-label">Final Amount</div>
                         <div class="result-value" id="final-amount">$0.00</div>
+                    </div>
+
+                    <div class="result-card" id="contributions-card" style="display: none;">
+                        <div class="result-label">Total Contributions</div>
+                        <div class="result-value" id="total-contributions">$0.00</div>
                     </div>
 
                     <div class="result-card">
@@ -112,6 +137,13 @@
                 </div>
 
                 <div class="data-grid">
+                    <div class="chart-section">
+                        <h3>Growth Over Time</h3>
+                        <div class="chart-container">
+                            <canvas id="growth-chart"></canvas>
+                        </div>
+                    </div>
+
                     <div class="breakdown-section">
                         <div class="breakdown-header">
                             <h3>Breakdown</h3>
@@ -125,19 +157,20 @@
                         </div>
                         <div id="breakdown-table"></div>
                     </div>
-
-                    <div class="chart-section">
-                        <h3>Growth Over Time</h3>
-                        <canvas id="growth-chart"></canvas>
-                    </div>
                 </div>
 
                 <div class="formula-section">
                     <h3>How it's calculated</h3>
-                    <div class="formula">
+                    <div class="formula" id="formula-display">
                         <p><strong>Formula:</strong> A = P(1 + r/n)<sup>nt</sup></p>
                         <p class="formula-explanation">
                             Where: A = Final amount, P = Principal, r = Annual interest rate, n = Compounding frequency per year, t = Time in years
+                        </p>
+                    </div>
+                    <div class="formula" id="formula-with-contributions" style="display: none;">
+                        <p><strong>Formula:</strong> A = P(1 + r/n)<sup>nt</sup> + PMT × [((1 + r/n)<sup>nt</sup> - 1) / (r/n)]</p>
+                        <p class="formula-explanation">
+                            Where: A = Final amount, P = Principal, PMT = Regular contribution, r = Annual interest rate, n = Compounding frequency per year, t = Time in years
                         </p>
                     </div>
                 </div>
