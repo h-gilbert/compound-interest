@@ -77,46 +77,6 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Make Enter key open select dropdowns (browsers natively use Space)
-document.querySelectorAll('select').forEach(select => {
-    let isExpanded = false;
-    const originalSize = select.size;
-
-    select.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !isExpanded) {
-            e.preventDefault();
-            // Expand select by showing all options
-            isExpanded = true;
-            select.size = select.options.length;
-            select.dataset.expanded = 'true';
-        } else if ((e.key === 'Enter' || e.key === 'Escape') && isExpanded) {
-            e.preventDefault();
-            // Collapse select
-            isExpanded = false;
-            select.size = originalSize || 1;
-            delete select.dataset.expanded;
-        }
-    });
-
-    select.addEventListener('change', () => {
-        // Collapse after selection
-        if (isExpanded) {
-            isExpanded = false;
-            select.size = originalSize || 1;
-            delete select.dataset.expanded;
-        }
-    });
-
-    select.addEventListener('blur', () => {
-        // Collapse on blur
-        if (isExpanded) {
-            isExpanded = false;
-            select.size = originalSize || 1;
-            delete select.dataset.expanded;
-        }
-    });
-});
-
 // Update breakdown when view selection changes
 breakdownViewSelect.addEventListener('change', () => {
     if (calculationData) {

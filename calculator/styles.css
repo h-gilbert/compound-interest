@@ -273,32 +273,6 @@ header h1 {
     color: var(--text-primary);
 }
 
-/* Expanded select (keyboard Enter) */
-.form-group select[data-expanded="true"] {
-    position: absolute;
-    z-index: 100;
-    height: auto;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-[data-theme="dark"] .form-group select[data-expanded="true"] {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.form-group select[data-expanded="true"] option {
-    padding: calc(var(--unit) * 1) calc(var(--unit) * 1.5);
-}
-
-.form-group select[data-expanded="true"] option:hover,
-.form-group select[data-expanded="true"] option:focus {
-    background: var(--accent-muted);
-}
-
-.form-group select[data-expanded="true"] option:checked {
-    background: var(--accent);
-    color: var(--text-on-accent);
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    TIME PERIOD GRID — MATHEMATICALLY PRECISE
    ═══════════════════════════════════════════════════════════════════════════ */
